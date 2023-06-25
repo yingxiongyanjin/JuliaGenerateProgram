@@ -1,0 +1,2 @@
+# JuliaGenerateProgram
+用于生成Julia集的简单项目
