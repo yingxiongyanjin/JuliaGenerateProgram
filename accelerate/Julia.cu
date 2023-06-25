@@ -56,18 +56,16 @@ void kernel(
     float scale, int step, float inf
 )
 {
-    for(int y = 0; y < DIM; y++){
-        for(int x = 0; x < DIM; x++){
+    int x = blockIdx.x;
+    int y = blockIdx.y;
+    int offset = x + y*gridDim.x;
 
-            // 判断是否为Julia集中的点
-            int juliaValue = julia(x, y, DIM, scale,step,inf);
+    // 判断是否为Julia集中的点
+    int juliaValue = julia(x, y, DIM, scale,step,inf);
 
-            // 如果是Julia集中的点，将其标记为白色
-            // 如果不是Julia集中的点，则将其标记为红色
-            int offset = x + y * DIM;
-            bitmap[offset] = 255 * juliaValue;
-        }
-    }
+    // 如果是Julia集中的点，将其标记为白色
+    // 如果不是Julia集中的点，则将其标记为红色
+    bitmap[offset] = 255 * juliaValue;
 }
 
 void checkOut(
@@ -87,6 +85,12 @@ void checkOut(
 
 int main( void ){
 
+    int deviceId;
+    int numberOfSMs;
+
+    cudaGetDevice(&deviceId);
+    cudaDeviceGetAttribute(&numberOfSMs, cudaDevAttrMultiProcessorCount, deviceId);
+
     clock_t start, end;
     double cpu_time_used;
     start = clock(); // 记录开始时间
@@ -103,11 +107,14 @@ int main( void ){
     int n = DIM * DIM;
     const int size = n*sizeof(int);
 
+    printf("to malloc!\n");
     // CUDA内存管理办法
     cudaMallocManaged(&bitmap, size);
 
+    printf("now is kernel function turn.\n");
     // 核心代码
-    kernel<<<1,1>>>(bitmap,DIM,scale,step,inf);
+    dim3 grid(DIM,DIM);
+    kernel<<<grid,1>>>(bitmap,DIM,scale,step,inf);
 
     cudaError_t Err;
     cudaError_t asyncErr;
@@ -119,13 +126,16 @@ int main( void ){
     asyncErr = cudaDeviceSynchronize();
     if(asyncErr != cudaSuccess) printf("Error: %s\n", cudaGetErrorString(asyncErr));
 
+    // 预取回主机
+    cudaMemPrefetchAsync(bitmap, size, cudaCpuDeviceId);
+
+    printf("now is checkout function turn.\n");
     int sum = 0;
     checkOut(sum,bitmap,DIM);
+    printf("done! %d\n",sum);
 
     // 释放内存
     cudaFree(bitmap);
-
-    printf("done! %d\n",sum);
 
     end = clock(); // 记录结束时间
     cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;

@@ -26,7 +26,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # 读入数据
-data = np.loadtxt('test.txt')
+data = np.loadtxt('filename.txt')
 
 # 显示灰度图
 plt.imshow(data, cmap='gray')
@@ -42,3 +42,9 @@ const int step = 200;
 const float inf = 1000; 
 ```
 ![result1](./img/Julia%E9%9B%86.png)
+
+## 利用CUDA对其进行加速
+程序复杂度为$O(n^2)$。随着DIM和step的增大，程序运行效率将会严重阻碍我们欣赏Julia集，本文利用CUDA将程序进行改造，实验结果表明DIM = 10000时，其加速比已经达到97倍。
+```bash
+\accelerate\Julia.cu
+```
